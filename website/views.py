@@ -5,7 +5,7 @@ from django.contrib import messages
 # Create your views here.
 
 def home(request):
-   pass
+   return render(request, 'home.html')
 
 def login_user(request):
     pass
