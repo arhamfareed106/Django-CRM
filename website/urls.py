@@ -22,4 +22,5 @@ urlpatterns = [
     path('get_record_forecasts/', views.get_record_forecasts, name='get_record_forecasts'),
     path('get_record_clusters/', views.get_record_clusters, name='get_record_clusters'),
     path('get_anomaly_detection/', views.get_anomaly_detection, name='get_anomaly_detection'),
+    path('features/', views.features, name='features'),
 ]

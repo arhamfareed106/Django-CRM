@@ -485,3 +485,9 @@ def get_cohort_analysis(request):
             'values': retention_matrix.values.tolist()
         })
     return JsonResponse({})
+
+@login_required
+def features(request):
+    return render(request, 'features.html', {
+        'title': 'Features'
+    })
