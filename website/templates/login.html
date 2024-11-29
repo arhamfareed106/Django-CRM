@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8" data-aos="fade-up">
+    <div class="max-w-md w-full space-y-8">
+        <div class="text-center">
+            <h2 class="text-3xl font-bold text-gradient">Welcome Back</h2>
+            <p class="mt-2 text-white/80">Sign in to your account</p>
+        </div>
+
+        <div class="card p-8">
+            <form method="POST" class="space-y-6">
+                {% csrf_token %}
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% if form.errors %}
+                    <div class="alert alert-error">
+                        <p class="font-medium">Your username and password didn't match. Please try again.</p>
+                    </div>
+                {% endif %}
+
+                <div>
+                    <label class="block text-sm font-medium text-white mb-2">Username</label>
+                    <input type="text" name="username" class="form-input" required autofocus>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-white mb-2">Password</label>
+                    <input type="password" name="password" class="form-input" required>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Sign in
+                    </button>
+                    <a href="{% url 'home' %}" class="btn-secondary">
+                        <i class="fas fa-arrow-left mr-2"></i>Back
+                    </a>
+                </div>
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-white/80">
+                    Don't have an account? 
+                    <a href="{% url 'register' %}" class="text-white hover:text-primary transition-colors duration-300">
+                        Register here
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

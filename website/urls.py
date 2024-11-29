@@ -1,8 +1,17 @@
 from django.urls import path
-from . import views  # Ensure views.py exists in the same directory as urls.py
+from . import views
 
 urlpatterns = [
-    path('', views.home, name='home'),  # Home page # type: ignore
-    # path('login/', views.login_user, name='login'),  # Login page
-    path('logot/', views.logout_user, name='logout'),  # Logout page
+    path('', views.home, name='home'),
+    path('logout/', views.logout_user, name='logout'),
+    path('register/', views.register_user, name='register'),
+    path('record/<int:pk>', views.customer_record, name='record'),
+    path('delete_record/<int:pk>', views.delete_record, name='delete_record'),
+    path('add_record/', views.add_record, name='add_record'),
+    path('update_record/<int:pk>', views.update_record, name='update_record'),
+    
+    # New URLs for advanced features
+    path('dashboard/', views.dashboard, name='dashboard'),
+    path('profile/', views.profile, name='profile'),
+    path('export-csv/', views.export_records_csv, name='export_records_csv'),
 ]

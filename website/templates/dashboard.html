@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-8" data-aos="fade-up">
+    <!-- Search and Filter Section -->
+    <div class="card p-6">
+        <form method="GET" class="space-y-4">
+            <div class="flex flex-wrap gap-4">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-white mb-2">Search</label>
+                    <div class="relative">
+                        <input type="text" name="q" value="{{ request.GET.q }}" 
+                               class="form-input pl-10" 
+                               placeholder="Search records...">
+                        <i class="fas fa-search absolute left-3 top-3 text-white/40"></i>
+                    </div>
+                </div>
+                <div class="w-48">
+                    <label class="block text-sm font-medium text-white mb-2">Filter by State</label>
+                    <select name="state" class="form-input">
+                        <option value="">All States</option>
+                        {% for state in states %}
+                            <option value="{{ state }}" {% if request.GET.state == state %}selected{% endif %}>
+                                {{ state }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-filter mr-2"></i>Apply Filters
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card p-6" data-aos="fade-up" data-aos-delay="100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-white/60">Total Records</p>
+                    <h3 class="text-3xl font-bold text-white">{{ total_records }}</h3>
+                </div>
+                <div class="text-primary text-3xl">
+                    <i class="fas fa-folder"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card p-6" data-aos="fade-up" data-aos-delay="200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-white/60">States Covered</p>
+                    <h3 class="text-3xl font-bold text-white">{{ records_by_state|length }}</h3>
+                </div>
+                <div class="text-primary text-3xl">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card p-6" data-aos="fade-up" data-aos-delay="300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-white/60">This Month</p>
+                    <h3 class="text-3xl font-bold text-white">
+                        {{ records_by_month.last.count|default:0 }}
+                    </h3>
+                </div>
+                <div class="text-primary text-3xl">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Records by State Chart -->
+        <div class="card p-6" data-aos="fade-up" data-aos-delay="400">
+            <h3 class="text-xl font-bold mb-4">Records by State</h3>
+            <div class="h-64" id="stateChart"></div>
+        </div>
+        
+        <!-- Records by Month Chart -->
+        <div class="card p-6" data-aos="fade-up" data-aos-delay="500">
+            <h3 class="text-xl font-bold mb-4">Records Timeline</h3>
+            <div class="h-64" id="timelineChart"></div>
+        </div>
+    </div>
+
+    <!-- Records Table -->
+    <div class="card" data-aos="fade-up" data-aos-delay="600">
+        <div class="p-6 flex justify-between items-center">
+            <h3 class="text-xl font-bold">Records</h3>
+            <a href="{% url 'export_records_csv' %}" class="btn-secondary">
+                <i class="fas fa-download mr-2"></i>Export CSV
+            </a>
+        </div>
+        
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Location</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/10">
+                    {% for record in records %}
+                        <tr class="hover:bg-white/5">
+                            <td>{{ record.first_name }} {{ record.last_name }}</td>
+                            <td>{{ record.email }}</td>
+                            <td>{{ record.phone }}</td>
+                            <td>{{ record.city }}, {{ record.state }}</td>
+                            <td>{{ record.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                <div class="flex space-x-2">
+                                    <a href="{% url 'record' record.id %}" class="btn-secondary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'update_record' record.id %}" class="btn-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'delete_record' record.id %}" 
+                                       class="btn-secondary text-red-400 hover:text-red-300"
+                                       onclick="return confirm('Are you sure you want to delete this record?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-8 text-white/60">
+                                No records found. Try adjusting your search or filters.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ApexCharts -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    // State Chart
+    const stateData = [
+        {% for state in records_by_state %}
+            { x: "{{ state.state }}", y: {{ state.count }} },
+        {% endfor %}
+    ];
+
+    const stateChart = new ApexCharts(document.querySelector("#stateChart"), {
+        series: [{
+            data: stateData
+        }],
+        chart: {
+            type: 'bar',
+            height: 250,
+            background: 'transparent',
+            foreColor: '#fff'
+        },
+        plotOptions: {
+            bar: {
+                borderRadius: 4,
+                horizontal: true,
+            }
+        },
+        theme: {
+            mode: 'dark'
+        },
+        colors: ['#00ff9d'],
+        xaxis: {
+            categories: stateData.map(d => d.x)
+        }
+    });
+    stateChart.render();
+
+    // Timeline Chart
+    const timelineData = [
+        {% for month in records_by_month %}
+            { x: "{{ month.month|date:'M Y' }}", y: {{ month.count }} },
+        {% endfor %}
+    ];
+
+    const timelineChart = new ApexCharts(document.querySelector("#timelineChart"), {
+        series: [{
+            name: 'Records',
+            data: timelineData.map(d => d.y)
+        }],
+        chart: {
+            type: 'area',
+            height: 250,
+            background: 'transparent',
+            foreColor: '#fff',
+            toolbar: {
+                show: false
+            }
+        },
+        theme: {
+            mode: 'dark'
+        },
+        colors: ['#00ff9d'],
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shadeIntensity: 1,
+                opacityFrom: 0.7,
+                opacityTo: 0.2,
+                stops: [0, 90, 100]
+            }
+        },
+        stroke: {
+            curve: 'smooth'
+        },
+        xaxis: {
+            categories: timelineData.map(d => d.x)
+        },
+        tooltip: {
+            theme: 'dark'
+        }
+    });
+    timelineChart.render();
+</script>
+{% endblock %}
