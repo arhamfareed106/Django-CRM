@@ -17,8 +17,16 @@
                 <p class="text-white/60 mb-4">{{ user.email }}</p>
                 <div class="flex flex-wrap justify-center md:justify-start gap-4">
                     <div class="text-center">
-                        <p class="text-2xl font-bold text-white">{{ records_count }}</p>
+                        <p class="text-2xl font-bold text-white">{{ total_records }}</p>
                         <p class="text-sm text-white/60">Total Records</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-white">{{ records_last_30_days }}</p>
+                        <p class="text-sm text-white/60">Last 30 Days</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-white">{{ daily_average|floatformat:1 }}</p>
+                        <p class="text-sm text-white/60">Daily Average</p>
                     </div>
                     <div class="text-center">
                         <p class="text-2xl font-bold text-white">
@@ -32,9 +40,22 @@
                 <button class="btn-secondary" onclick="toggleEditProfile()">
                     <i class="fas fa-edit mr-2"></i>Edit Profile
                 </button>
-                <a href="{% url 'export_records_csv' %}" class="btn-secondary">
-                    <i class="fas fa-download mr-2"></i>Export Data
-                </a>
+                <div class="dropdown">
+                    <button class="btn-secondary dropdown-toggle">
+                        <i class="fas fa-download mr-2"></i>Export Data
+                    </button>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'export_records' 'csv' %}" class="dropdown-item">
+                            <i class="fas fa-file-csv mr-2"></i>CSV
+                        </a>
+                        <a href="{% url 'export_records' 'excel' %}" class="dropdown-item">
+                            <i class="fas fa-file-excel mr-2"></i>Excel
+                        </a>
+                        <a href="{% url 'export_records' 'json' %}" class="dropdown-item">
+                            <i class="fas fa-file-code mr-2"></i>JSON
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -67,6 +88,23 @@
                 <button type="submit" class="btn-primary">Save Changes</button>
             </div>
         </form>
+    </div>
+
+    <!-- Records by State -->
+    <div class="card p-6" data-aos="fade-up" data-aos-delay="100">
+        <h2 class="text-xl font-bold mb-4">Records by State</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {% for state in records_by_state %}
+                <div class="p-4 rounded-lg bg-white/5">
+                    <h3 class="font-medium">{{ state.state }}</h3>
+                    <p class="text-2xl font-bold text-primary">{{ state.count }}</p>
+                </div>
+            {% empty %}
+                <div class="col-span-4 text-center py-8 text-white/60">
+                    No records found.
+                </div>
+            {% endfor %}
+        </div>
     </div>
 
     <!-- Recent Activity -->
@@ -104,13 +142,11 @@
     function toggleEditProfile() {
         const form = document.getElementById('editProfileForm');
         form.classList.toggle('hidden');
-    }
-
-    // Add smooth scroll animation when form appears/disappears
-    document.getElementById('editProfileForm').addEventListener('transitionend', function() {
-        if (!this.classList.contains('hidden')) {
-            this.scrollIntoView({ behavior: 'smooth' });
+        
+        // Add smooth scroll animation when form appears
+        if (!form.classList.contains('hidden')) {
+            form.scrollIntoView({ behavior: 'smooth' });
         }
-    });
+    }
 </script>
 {% endblock %}

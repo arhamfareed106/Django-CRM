@@ -1,0 +1,492 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="card bg-gray-800 rounded-lg shadow-lg p-6">
+            <h3 class="text-xl font-bold mb-2 text-gray-200">Total Records</h3>
+            <p class="text-4xl font-bold text-emerald-400">{{ total_records|default:"0" }}</p>
+        </div>
+        <div class="card bg-gray-800 rounded-lg shadow-lg p-6">
+            <h3 class="text-xl font-bold mb-2 text-gray-200">This Month</h3>
+            <p class="text-4xl font-bold text-emerald-400">{{ records_by_month.0.count|default:"0" }}</p>
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="card bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+        <form method="GET" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-gray-200 mb-2">Search</label>
+                    <input type="text" name="q" value="{{ request.GET.q }}" 
+                           class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 focus:outline-none focus:border-emerald-400" 
+                           placeholder="Search records...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-200 mb-2">State</label>
+                    <select name="state" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 focus:outline-none focus:border-emerald-400">
+                        <option value="">All States</option>
+                        {% for state in states %}
+                            <option value="{{ state }}" {% if state == current_state %}selected{% endif %}>
+                                {{ state }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-200 mb-2">Date Range</label>
+                    <select name="date_range" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 focus:outline-none focus:border-emerald-400">
+                        {% for range in date_ranges %}
+                            <option value="{{ range.value }}" {% if range.value == current_date_range %}selected{% endif %}>
+                                {{ range.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Advanced Analytics Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Record Growth Forecast -->
+        <div class="card bg-gray-800 rounded-lg shadow-lg p-6">
+            <h3 class="text-xl font-bold mb-4 text-gray-200">Record Growth Forecast</h3>
+            <div id="forecastChart" class="h-80">
+                <div class="flex items-center justify-center h-full text-gray-400" id="forecastLoading">
+                    Loading forecast data...
+                </div>
+            </div>
+        </div>
+        
+        <!-- State Clusters -->
+        <div class="card bg-gray-800 rounded-lg shadow-lg p-6">
+            <h3 class="text-xl font-bold mb-4 text-gray-200">State Clusters</h3>
+            <div id="clusterChart" class="h-64"></div>
+        </div>
+
+        <!-- Anomaly Detection -->
+        <div class="card bg-gray-800 rounded-lg shadow-lg p-6">
+            <h3 class="text-xl font-bold mb-4 text-gray-200">Anomaly Detection</h3>
+            <div id="anomalyChart" class="h-80">
+                <div class="flex items-center justify-center h-full text-gray-400" id="anomalyLoading">
+                    Loading anomaly data...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Records Table -->
+    <div class="card bg-gray-800 rounded-lg shadow-lg p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gray-200">Recent Records</h3>
+            <div class="flex gap-4">
+                <a href="{% url 'export_records' 'csv' %}" class="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600">
+                    Export CSV
+                </a>
+                <a href="{% url 'export_records' 'excel' %}" class="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600">
+                    Export Excel
+                </a>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-700">
+                <thead>
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Phone</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">State</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+                    {% for record in records %}
+                        <tr class="hover:bg-gray-700">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <a href="{% url 'record' record.id %}" class="text-emerald-400 hover:text-emerald-300">
+                                    {{ record.first_name }} {{ record.last_name }}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-gray-200">{{ record.email }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-gray-200">{{ record.phone }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-gray-200">{{ record.state }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-gray-200">{{ record.created_at|date:"M d, Y" }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex gap-2">
+                                    <a href="{% url 'record' record.id %}" 
+                                       class="px-3 py-1 bg-emerald-500 text-white rounded hover:bg-emerald-600">
+                                        View
+                                    </a>
+                                    <a href="{% url 'delete_record' record.id %}" 
+                                       class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                                       onclick="return confirm('Are you sure you want to delete this record?')">
+                                        Delete
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-400">
+                                No records found. Try adjusting your search or filters.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Initialize Charts -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    // Record Growth Forecast Chart
+    fetch('/get_record_forecasts/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            const forecastEl = document.querySelector("#forecastChart");
+            forecastEl.innerHTML = ''; // Clear loading message
+
+            const options = {
+                series: [{
+                    name: 'Actual Records',
+                    type: 'bar',
+                    data: data.actuals.map((value, index) => ({
+                        x: data.dates[index],
+                        y: value
+                    })).filter(point => point.y !== null)
+                }, {
+                    name: 'Forecast',
+                    type: 'line',
+                    data: data.forecast.map((value, index) => ({
+                        x: data.dates[index],
+                        y: value
+                    }))
+                }],
+                chart: {
+                    height: 350,
+                    type: 'line',
+                    background: 'transparent',
+                    toolbar: {
+                        show: false
+                    }
+                },
+                stroke: {
+                    width: [0, 3],
+                    curve: 'smooth'
+                },
+                colors: ['#34D399', '#60A5FA'],
+                dataLabels: {
+                    enabled: false
+                },
+                fill: {
+                    opacity: [0.85, 0.25],
+                    gradient: {
+                        inverseColors: false,
+                        shade: 'light',
+                        type: "vertical",
+                        opacityFrom: 0.85,
+                        opacityTo: 0.55,
+                    }
+                },
+                grid: {
+                    borderColor: '#374151',
+                    xaxis: {
+                        lines: {
+                            show: true
+                        }
+                    },
+                    yaxis: {
+                        lines: {
+                            show: true
+                        }
+                    }
+                },
+                markers: {
+                    size: [0, 4],
+                    strokeWidth: 2,
+                    hover: {
+                        size: 6
+                    }
+                },
+                xaxis: {
+                    type: 'datetime',
+                    labels: {
+                        style: {
+                            colors: '#9CA3AF'
+                        },
+                        datetimeFormatter: {
+                            year: 'yyyy',
+                            month: 'MMM dd',
+                            day: 'MMM dd'
+                        }
+                    },
+                    tooltip: {
+                        enabled: false
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Number of Records',
+                        style: {
+                            color: '#9CA3AF'
+                        }
+                    },
+                    labels: {
+                        style: {
+                            colors: '#9CA3AF'
+                        }
+                    }
+                },
+                legend: {
+                    labels: {
+                        colors: '#9CA3AF'
+                    }
+                },
+                tooltip: {
+                    shared: true,
+                    intersect: false,
+                    theme: 'dark',
+                    y: [{
+                        formatter: function (y) {
+                            if (typeof y !== "undefined") {
+                                return y.toFixed(0) + " records";
+                            }
+                            return y;
+                        }
+                    }, {
+                        formatter: function (y) {
+                            if (typeof y !== "undefined") {
+                                return y.toFixed(0) + " records";
+                            }
+                            return y;
+                        }
+                    }]
+                }
+            };
+
+            const chart = new ApexCharts(forecastEl, options);
+            chart.render();
+        })
+        .catch(error => {
+            const forecastEl = document.querySelector("#forecastChart");
+            forecastEl.innerHTML = `<div class="flex items-center justify-center h-full text-red-400">Error loading forecast: ${error.message}</div>`;
+        });
+
+    // State Clusters
+    fetch('/get_record_clusters/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.clusters && data.clusters.length > 0) {
+                const series = data.clusters.map(cluster => ({
+                    name: cluster.state,
+                    data: cluster.pattern
+                }));
+
+                new ApexCharts(document.querySelector("#clusterChart"), {
+                    series: series,
+                    chart: {
+                        height: 350,
+                        type: 'heatmap',
+                        background: 'transparent',
+                        toolbar: {
+                            show: false
+                        }
+                    },
+                    dataLabels: {
+                        enabled: false
+                    },
+                    colors: ['#34D399'],
+                    xaxis: {
+                        categories: data.timepoints,
+                        labels: {
+                            rotate: -45
+                        }
+                    },
+                    title: {
+                        text: 'State Activity Patterns',
+                        align: 'center',
+                        style: {
+                            color: '#9CA3AF'
+                        }
+                    }
+                }).render();
+            }
+        })
+        .catch(error => console.error('Error loading cluster data:', error));
+
+    // Anomaly Detection Chart
+    fetch('/get_anomaly_detection/')
+        .then(response => response.json())
+        .then(response => {
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to load anomaly data');
+            }
+
+            const data = response.data;
+            const anomalyEl = document.querySelector("#anomalyChart");
+            anomalyEl.innerHTML = ''; // Clear loading message
+
+            const options = {
+                series: [{
+                    name: 'Daily Records',
+                    type: 'line',
+                    data: data.counts.map((value, index) => ({
+                        x: data.dates[index],
+                        y: value
+                    }))
+                }, {
+                    name: 'Moving Average',
+                    type: 'line',
+                    data: data.moving_average.map((value, index) => ({
+                        x: data.dates[index],
+                        y: value
+                    }))
+                }, {
+                    name: 'Upper Bound',
+                    type: 'line',
+                    data: data.upper_bound.map((value, index) => ({
+                        x: data.dates[index],
+                        y: value
+                    }))
+                }, {
+                    name: 'Lower Bound',
+                    type: 'line',
+                    data: data.lower_bound.map((value, index) => ({
+                        x: data.dates[index],
+                        y: value
+                    }))
+                }],
+                chart: {
+                    height: 350,
+                    type: 'line',
+                    background: 'transparent',
+                    toolbar: {
+                        show: false
+                    },
+                    zoom: {
+                        enabled: false
+                    }
+                },
+                stroke: {
+                    width: [3, 2, 1, 1],
+                    curve: 'smooth',
+                    dashArray: [0, 0, 2, 2]
+                },
+                colors: ['#34D399', '#60A5FA', '#F59E0B', '#F59E0B'],
+                dataLabels: {
+                    enabled: false
+                },
+                markers: {
+                    size: [4, 0, 0, 0],
+                    strokeWidth: 2,
+                    hover: {
+                        size: 6
+                    }
+                },
+                xaxis: {
+                    type: 'datetime',
+                    labels: {
+                        style: {
+                            colors: '#9CA3AF'
+                        },
+                        datetimeFormatter: {
+                            year: 'yyyy',
+                            month: 'MMM dd',
+                            day: 'MMM dd'
+                        }
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Number of Records',
+                        style: {
+                            color: '#9CA3AF'
+                        }
+                    },
+                    labels: {
+                        style: {
+                            colors: '#9CA3AF'
+                        }
+                    }
+                },
+                legend: {
+                    labels: {
+                        colors: '#9CA3AF'
+                    }
+                },
+                grid: {
+                    borderColor: '#374151',
+                    xaxis: {
+                        lines: {
+                            show: true
+                        }
+                    },
+                    yaxis: {
+                        lines: {
+                            show: true
+                        }
+                    }
+                },
+                tooltip: {
+                    shared: true,
+                    intersect: false,
+                    theme: 'dark',
+                    y: {
+                        formatter: function(value) {
+                            return value.toFixed(0) + " records";
+                        }
+                    }
+                },
+                annotations: {
+                    points: data.anomalies.indices.map((index, i) => ({
+                        x: data.anomalies.dates[i],
+                        y: data.anomalies.counts[i],
+                        marker: {
+                            size: 6,
+                            fillColor: '#EF4444',
+                            strokeColor: '#ffffff',
+                            radius: 2
+                        },
+                        label: {
+                            borderColor: '#EF4444',
+                            text: 'Anomaly',
+                            style: {
+                                color: '#ffffff',
+                                background: '#EF4444',
+                                padding: {
+                                    left: 5,
+                                    right: 5,
+                                    top: 2,
+                                    bottom: 2
+                                }
+                            }
+                        }
+                    }))
+                }
+            };
+
+            const chart = new ApexCharts(anomalyEl, options);
+            chart.render();
+        })
+        .catch(error => {
+            const anomalyEl = document.querySelector("#anomalyChart");
+            anomalyEl.innerHTML = `<div class="flex items-center justify-center h-full text-red-400">Error loading anomaly data: ${error.message}</div>`;
+        });
+</script>
+{% endblock %}
